@@ -2,11 +2,12 @@ module Views.Lobby exposing (view)
 
 import Html exposing (Html, form)
 import Html.Attributes as Html
+import Data.Session exposing (User)
 import Page.Lobby exposing (Model, Msg(..))
 
 
-view : Model -> Html Msg
-view model =
+view : User -> Model -> Html Msg
+view { email } model =
     Html.div
         []
         [ Html.img
@@ -16,8 +17,8 @@ view model =
             []
         , Html.h3
             []
-            [ Html.text "Welcome!" ]
+            [ Html.text <| "Welcome " ++ email ++ "!" ]
         , Html.p
             []
-            [ Html.text "You signed in successfully" ]
+            [ Html.text "You signed in successfully." ]
         ]

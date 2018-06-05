@@ -8,18 +8,24 @@ import Page.SignIn exposing (Model, Msg(..))
 
 view : Model -> Html Msg
 view { email, message } =
-    case message of
-        Nothing ->
-            formView email
+    let
+        content =
+            case message of
+                Nothing ->
+                    formView email
 
-        Just text ->
-            messageView text
+                Just text ->
+                    messageView text
+    in
+        Html.section
+            [ Html.class "bg-purple-darker p-8 flex flex-1 items-center justify-center h-screen" ]
+            [ content ]
 
 
 formView : String -> Html Msg
 formView email =
     Html.div
-        [ Html.class "p-8" ]
+        []
         [ Html.img
             [ Html.src "/images/icons8-mailbox-128.png"
             , Html.class "mb-4 slide-in-blurred-top"
@@ -37,7 +43,7 @@ formView email =
             ]
             [ Html.input
                 [ Html.class "appearance-none block w-full bg-grey-lighter text-grey-darker rounded py-3 px-4 mb-3"
-                , Html.placeholder "valid@email.com"
+                , Html.placeholder "foo@email.com"
                 , Html.type_ "email"
                 , Html.onInput HandleEmailInput
                 , Html.value email
@@ -53,7 +59,7 @@ formView email =
 messageView : String -> Html Msg
 messageView message =
     Html.div
-        [ Html.class "p-8" ]
+        []
         [ Html.img
             [ Html.src "/images/icons8-postal-128.png"
             , Html.class "mb-4 jello-horizontal"

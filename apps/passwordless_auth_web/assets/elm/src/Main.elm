@@ -10,6 +10,7 @@ import Page.SignIn
 import Phoenix
 import Phoenix.Channel as Channel exposing (Channel)
 import Phoenix.Socket as Socket exposing (Socket, AbnormalClose)
+import Phoenix.Push as Push exposing (Push)
 import Ports
 import Route exposing (Route(..))
 import Views.Lobby
@@ -86,8 +87,10 @@ type Msg
     = SetRoute (Maybe Route)
     | ConnectionStatusChanged ConnectionStatus
     | HandleAdminChannelJoin Decode.Value
+    | ViewsPageMsg Views.Page.Msg
     | PageSignInMsg Page.SignIn.Msg
     | PageLobbyMsg Page.Lobby.Msg
+    | HandleSignOutSuccess Decode.Value
 
 
 setRoute : Maybe Route -> Model -> ( Model, Cmd Msg )
@@ -139,12 +142,12 @@ pageErrored model errorMessage =
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    updatePage (getPage model.pageState) msg model
+update msg ({ flags, pageState } as model) =
+    updatePage flags (getPage pageState) msg model
 
 
-updatePage : Page -> Msg -> Model -> ( Model, Cmd Msg )
-updatePage page msg model =
+updatePage : Flags -> Page -> Msg -> Model -> ( Model, Cmd Msg )
+updatePage { socketUrl } page msg model =
     let
         session =
             model.session
@@ -162,6 +165,15 @@ updatePage page msg model =
         case ( msg, page ) of
             ( SetRoute route, _ ) ->
                 setRoute route model
+
+            ( ViewsPageMsg subMsg, _ ) ->
+                case subMsg of
+                    Views.Page.SignOut ->
+                        model
+                            ! [ Push.init "admin:lobby" "sign_out"
+                                    |> Push.onOk HandleSignOutSuccess
+                                    |> Phoenix.push socketUrl
+                              ]
 
             ( PageSignInMsg subMsg, SignInPage subModel ) ->
                 toPage SignInPage PageSignInMsg Page.SignIn.update subMsg subModel
@@ -200,6 +212,13 @@ updatePage page msg model =
                                 Debug.log "Error" error
                         in
                             model ! []
+
+            ( HandleSignOutSuccess _, _ ) ->
+                { model
+                    | connectionStatus = Disconnected
+                    , session = { user = Nothing }
+                }
+                    ! [ Route.newUrl SignInRoute, Ports.saveToken Nothing ]
 
             ( _, NotFoundPage ) ->
                 model ! []
@@ -263,15 +282,18 @@ view model =
 viewPage : Session -> Bool -> Page -> Html Msg
 viewPage session isLoading page =
     let
+        header =
+            Html.map ViewsPageMsg Views.Page.headerView
+
         frame =
-            Views.Page.frame isLoading session.user
+            Views.Page.frame isLoading session.user header
     in
-        case page of
-            SignInPage subModel ->
+        case ( page, session.user ) of
+            ( SignInPage subModel, _ ) ->
                 map PageSignInMsg (Views.SignIn.view subModel)
 
-            LobbyPage subModel ->
-                map PageLobbyMsg (Views.Lobby.view subModel) |> frame
+            ( LobbyPage subModel, Just user ) ->
+                map PageLobbyMsg (Views.Lobby.view user subModel) |> frame
 
             _ ->
                 frame <| Html.text "View not implemented yet"
